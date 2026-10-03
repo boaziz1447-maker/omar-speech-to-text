@@ -16,8 +16,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# اسم نموذج Whisper
-MODEL_NAME = os.getenv("WHISPER_MODEL", "tiny")
+# نموذج Whisper
+# base أدق من tiny في التعرف على الكلام العربي
+MODEL_NAME = os.getenv("WHISPER_MODEL", "base")
 
 # تحميل النموذج عند أول طلب
 model = None
@@ -66,7 +67,7 @@ async def transcribe(file: UploadFile = File(...)):
     temp_path = None
 
     try:
-        # تحديد امتداد الملف الأصلي
+        # الاحتفاظ بامتداد الملف الأصلي
         suffix = os.path.splitext(file.filename or "")[1]
 
         if not suffix:
@@ -93,17 +94,18 @@ async def transcribe(file: UploadFile = File(...)):
         # تحميل نموذج Whisper
         whisper = get_model()
 
-        # تحويل الصوت إلى نص
+        # تحويل الصوت إلى نص باللغة العربية
         segments, info = whisper.transcribe(
             temp_path,
             language="ar",
             beam_size=5,
+            best_of=5,
             temperature=0,
             vad_filter=True,
-            condition_on_previous_text=False
+            condition_on_previous_text=True
         )
 
-        # تجميع النص
+        # تجميع المقاطع
         text_parts = []
 
         for segment in segments:
@@ -137,3 +139,4 @@ async def transcribe(file: UploadFile = File(...)):
                 os.remove(temp_path)
             except Exception:
                 pass
+        

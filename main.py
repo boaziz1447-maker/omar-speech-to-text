@@ -62,7 +62,7 @@ async def transcribe(file: UploadFile = File(...)):
             detail="لم يتم إرسال ملف صوتي"
         )
 
-    # التحقق من نوع الملف
+    # أنواع الملفات الصوتية المسموحة
     allowed_types = [
         "audio/mpeg",
         "audio/mp3",
@@ -71,6 +71,8 @@ async def transcribe(file: UploadFile = File(...)):
         "audio/webm",
         "audio/ogg",
         "audio/mp4",
+        "audio/x-m4a",
+        "audio/m4a",
         "video/webm"
     ]
 
@@ -102,10 +104,10 @@ async def transcribe(file: UploadFile = File(...)):
 
             temp_file.write(content)
 
-        # الحصول على النموذج
+        # الحصول على نموذج Whisper
         whisper = get_model()
 
-        # تحويل الصوت إلى نص
+        # تحويل الصوت إلى نص باللغة العربية
         segments, info = whisper.transcribe(
             temp_path,
             language="ar",

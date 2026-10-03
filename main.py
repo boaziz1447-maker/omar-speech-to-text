@@ -16,10 +16,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# يمكن تغيير النموذج لاحقًا من إعدادات Render
+# اسم نموذج Whisper
 MODEL_NAME = os.getenv("WHISPER_MODEL", "tiny")
 
-# تحميل النموذج عند أول طلب وليس عند تشغيل السيرفر
+# تحميل النموذج عند أول طلب
 model = None
 
 
@@ -56,58 +56,44 @@ async def health():
 
 @app.post("/transcribe")
 async def transcribe(file: UploadFile = File(...)):
+
     if not file:
         raise HTTPException(
             status_code=400,
             detail="لم يتم إرسال ملف صوتي"
         )
 
-    # أنواع الملفات الصوتية المسموحة
-    allowed_types = [
-        "audio/mpeg",
-        "audio/mp3",
-        "audio/wav",
-        "audio/x-wav",
-        "audio/webm",
-        "audio/ogg",
-        "audio/mp4",
-        "audio/x-m4a",
-        "audio/m4a",
-        "video/webm"
-    ]
-
-    if file.content_type and file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400,
-            detail=f"نوع الملف غير مدعوم: {file.content_type}"
-        )
-
     temp_path = None
 
     try:
-        # حفظ الصوت مؤقتًا
-        suffix = os.path.splitext(file.filename or "")[1] or ".webm"
+        # تحديد امتداد الملف الأصلي
+        suffix = os.path.splitext(file.filename or "")[1]
 
+        if not suffix:
+            suffix = ".webm"
+
+        # قراءة الملف
+        content = await file.read()
+
+        if not content:
+            raise HTTPException(
+                status_code=400,
+                detail="الملف الصوتي فارغ"
+            )
+
+        # حفظ الملف مؤقتًا
         with tempfile.NamedTemporaryFile(
             delete=False,
             suffix=suffix
         ) as temp_file:
+
             temp_path = temp_file.name
-
-            content = await file.read()
-
-            if not content:
-                raise HTTPException(
-                    status_code=400,
-                    detail="الملف الصوتي فارغ"
-                )
-
             temp_file.write(content)
 
-        # الحصول على نموذج Whisper
+        # تحميل نموذج Whisper
         whisper = get_model()
 
-        # تحويل الصوت إلى نص باللغة العربية
+        # تحويل الصوت إلى نص
         segments, info = whisper.transcribe(
             temp_path,
             language="ar",
@@ -117,7 +103,7 @@ async def transcribe(file: UploadFile = File(...)):
             condition_on_previous_text=False
         )
 
-        # تجميع المقاطع
+        # تجميع النص
         text_parts = []
 
         for segment in segments:
